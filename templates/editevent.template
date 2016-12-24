@@ -1,0 +1,165 @@
+<html>
+<head>
+  <title>Edit Event</title>
+
+  <link rel="stylesheet" type="text/css" href="css/modal.css">
+</head>
+<body>
+  <script type="text/javascript" src="//vuejs.org/js/vue.js"></script>
+  <!-- item template -->
+  <script type="text/x-template" id="item-template">
+    <div>
+      <li>
+        <div>
+          <span @click="toggleEdit">${event.Name}</span><br/>
+          ${event.Description}<br/>
+          <span v-if="!event.Child"><button @click="addChild">add child</button><br/></span>
+          <span v-if="!event.Sibling"><button @click="addSibling">add sibling</button><br/></span>
+        </div>
+        <ul v-if="event.Child">
+          <item class="item" :event="event.Child"></item>
+        </ul>
+      </li>
+      <li v-if="event.Sibling">
+        <item class="item" :event="event.Sibling"></item>
+      </li>
+    </div>
+  </script>
+
+  <script type="text/x-template" id="modal-template">
+    <transition name="modal">
+      <div class="modal-mask">
+        <div class="modal-wrapper">
+          <div class="modal-container">
+
+            <div class="modal-header">
+              <slot name="header">Edit</slot>
+            </div>
+
+            <div class="modal-body">
+              <slot name="body">
+                <table>
+                  <tr>
+                    <td>Name:</td>
+                    <td><input type="text" v-model="event.Name"/></td>
+                  <tr/>
+                  <tr>
+                    <td>Description:</td>
+                    <td><textarea v-model="event.Description"></textarea></td>
+                  <tr/>
+                </table>
+
+
+              </slot>
+            </div>
+
+            <div class="modal-footer">
+              <slot name="footer">
+                <button class="modal-default-button" @click="cancel">cancel</button>
+                <button class="modal-default-button" @click="save">save</button>
+              </slot>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </script>
+
+  <span id="status"></span>
+
+  <ul id="eventView">
+    <item class="item" :event="event"></item>
+  </ul>
+
+  <div id="modalView">
+    <modal v-if="showModal" :showModal="showModal" :event="event"></modal>
+  </div>
+
+  <button onclick="postUpdate()">save</button>
+
+  <script>
+  var editEvent = JSON.parse({{ . }});
+  var showModal = false;
+
+  function newEmptyEvent(name) {
+    return {
+      "Name" : name,
+      "ID" : -1,
+      "SiblingID" : -1,
+      "ChildID" : -1,
+    };
+  }
+
+  Vue.component('item', {
+    "template": "#item-template",
+    "delimiters": ['${', '}'],
+    "props": {
+      "event": Object,
+    },
+    methods: {
+      addChild: function () {
+        Vue.set(this.event, 'Child', newEmptyEvent("New Child"));
+      },
+      addSibling: function () {
+        Vue.set(this.event, 'Sibling', newEmptyEvent("New Sibling"));
+      },
+      toggleEdit: function () {
+        modalView.$data.showModal = true;
+        modalView.$data.selectedEvent = this.event;
+        modalView.$data.event = {
+          Name : this.event.Name,
+          Description : this.event.Description,
+        }
+      }
+    }
+  });
+
+  new Vue({
+    "el": "#eventView",
+    "data": {
+      "event": editEvent,
+    }
+  });
+
+  Vue.component('modal', {
+    template: '#modal-template',
+    "delimiters": ['${', '}'],
+    "props": {
+      "showModal": Boolean,
+      "event": Object,
+      "selectedEvent": Object,
+    },
+    methods: {
+      save: function() {
+        modalView.$data.selectedEvent.Name = modalView.$data.event.Name;
+        modalView.$data.selectedEvent.Description = modalView.$data.event.Description;
+        modalView.$data.showModal = false;
+      },
+      cancel: function() {
+        modalView.$data.showModal = false;
+      },
+    }
+  });
+
+  var modalView = new Vue({
+    "el": "#modalView",
+    "data": {
+      "showModal": false,
+      "event": null,
+      "selectedEvent": null,
+    }
+  });
+
+  function postUpdate() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById("status").innerHTML = this.responseText;
+      }
+    };
+    xhttp.open("POST", "/save_event", true);
+    xhttp.send(JSON.stringify(editEvent));
+  }
+  </script>
+</body>
+</html>
