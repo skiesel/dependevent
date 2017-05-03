@@ -18,7 +18,7 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 	account := getAccountByEmail(u.Email, c)
 	account.populateEvents(c)
 
-	err := pages.ExecuteTemplate(w, "dashboard.template", account)
+	err := pages.ExecuteTemplate(w, "dashboard.html", account)
 	if err != nil {
 		showError(w, http.StatusInternalServerError, err, c)
 	}

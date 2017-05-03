@@ -1,0 +1,150 @@
+<html ng-app="Dashboard">
+
+<head>
+
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular.js"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-tree/2.22.5/angular-ui-tree.min.js"></script>
+
+	<link href="css/tree.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//cdnjs.cloudflare.com/ajax/libs/angular-ui-tree/2.22.5/angular-ui-tree.min.css" rel="stylesheet">
+
+	<title>Dashboard</title>
+
+	<script>
+		var app = angular.module("Dashboard", ['ui.tree'], function($interpolateProvider) {
+				$interpolateProvider.startSymbol('[[');
+				$interpolateProvider.endSymbol(']]');
+			})
+			.config(function(treeConfig) {
+				treeConfig.defaultCollapsed = true;
+				treeConfig.appendChildOnHover = true;
+			});
+	</script>
+</head>
+
+<body ng-controller="DashboardController" ng-cloak>
+
+	<script type="text/ng-template" id="event_renderer.html">
+		<div ui-tree-handle class="tree-node tree-node-content">
+			<a class="btn btn-success btn-xs" ng-if="event.events && event.events.length > 0" data-nodrag ng-click="toggle(this)"><span
+					class="glyphicon"
+					ng-class="{
+						'glyphicon-chevron-right': collapsed,
+						'glyphicon-chevron-down': !collapsed
+					}"></span></a> [[ event.title ]]
+			<!-- <a class="pull-right btn btn-danger btn-xs" data-nodrag ng-click="remove(this)"><span
+					class="glyphicon glyphicon-remove"></span></a>
+			<a class="pull-right btn btn-primary btn-xs" data-nodrag ng-click="newSubItem(this)" style="margin-right: 8px;"><span
+					class="glyphicon glyphicon-plus"></span></a> -->
+		</div>
+		<ol ui-tree-nodes="" ng-model="event.events" ng-class="{hidden: collapsed}">
+			<li ng-repeat="event in event.events" ui-tree-node ng-include="'event_renderer.html'">
+			</li>
+		</ol>
+	</script>
+
+
+	<div>
+		{{ .Email }}
+	</div>
+
+	<div>
+		<a href="./edit_event">Add New Event</a>
+	</div>
+
+	<div class="row">
+		<div class="col-sm-6">
+			<div ui-tree id="tree-root">
+				<ol ui-tree-nodes ng-model="events">
+					<li ng-repeat="event in events" ui-tree-node ng-include="'event_renderer.html'"></li>
+				</ol>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		app.controller("DashboardController", function($scope) {
+			$scope.events = [{
+					"id": 1,
+					"title": "node1",
+					"events": [{
+							"id": 11,
+							"title": "node1.1",
+							"events": [{
+								"id": 111,
+								"title": "node1.1.1",
+								"events": []
+							}]
+						},
+						{
+							"id": 12,
+							"title": "node1.2",
+							"events": []
+						}
+					]
+				},
+				{
+					"id": 2,
+					"title": "node2",
+					"nodrop": true,
+					"events": [{
+							"id": 21,
+							"title": "node2.1",
+							"events": []
+						},
+						{
+							"id": 22,
+							"title": "node2.2",
+							"events": []
+						}
+					]
+				},
+				{
+					"id": 3,
+					"title": "node3",
+					"events": [{
+						"id": 31,
+						"title": "node3.1",
+						"events": []
+					}]
+				}
+			];
+
+			$scope.remove = function(scope) {
+				scope.remove();
+			};
+
+			$scope.toggle = function(scope) {
+				scope.toggle();
+			};
+
+			$scope.moveLastToTheBeginning = function() {
+				var a = $scope.events.pop();
+				$scope.events.splice(0, 0, a);
+			};
+
+			$scope.newSubItem = function(scope) {
+				var nodeData = scope.$modelValue;
+				nodeData.events.push({
+					id: nodeData.id * 10 + nodeData.events.length,
+					title: nodeData.title + '.' + (nodeData.events.length + 1),
+					nodes: []
+				});
+			};
+
+			$scope.collapseAll = function() {
+				$scope.$broadcast('angular-ui-tree:collapse-all');
+			};
+
+			$scope.expandAll = function() {
+				$scope.$broadcast('angular-ui-tree:expand-all');
+			};
+
+		});
+	</script>
+</body>
+
+</html>

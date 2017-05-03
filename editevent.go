@@ -55,7 +55,7 @@ func editEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = pages.ExecuteTemplate(w, "editevent.template", string(encodedEventBytes))
+	err = pages.ExecuteTemplate(w, "editevent.html", string(encodedEventBytes))
 	if err != nil {
 		showError(w, http.StatusInternalServerError, err, c)
 	}

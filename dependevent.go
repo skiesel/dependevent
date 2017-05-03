@@ -10,7 +10,7 @@ var (
 )
 
 func init() {
-	pages = template.Must(template.ParseGlob("templates/*.template"))
+	pages = template.Must(template.ParseGlob("templates/*.html"))
 
 	http.HandleFunc("/edit_event", editEvent)
 	http.HandleFunc("/save_event", saveEvent)
