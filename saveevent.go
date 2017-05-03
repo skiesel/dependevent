@@ -1,11 +1,11 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/datastore"
-	"appengine/user"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/user"
 	"net/http"
 )
 

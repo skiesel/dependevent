@@ -1,9 +1,10 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/datastore"
-	"appengine/memcache"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/memcache"
 )
 
 type Account struct {
@@ -12,11 +13,11 @@ type Account struct {
 	RootEventIDs   []int
 	ActiveEventIDs []int
 
-	RootEvents []*Event `datastore:"-"`
+	RootEvents   []*Event `datastore:"-"`
 	ActiveEvents []*Event `datastore:"-"`
 }
 
-func (account *Account) putInMemcache(c appengine.Context) {
+func (account *Account) putInMemcache(c context.Context) {
 	fullLookup := &memcache.Item{
 		Key:    account.Email,
 		Object: account,
@@ -24,20 +25,20 @@ func (account *Account) putInMemcache(c appengine.Context) {
 	memcache.JSON.Set(c, fullLookup)
 }
 
-func (account *Account) saveInDS(c appengine.Context) error {
+func (account *Account) saveInDS(c context.Context) error {
 	key := datastore.NewKey(c, "Account", account.Email, 0, nil)
 	if _, err := datastore.Put(c, key, account); err != nil {
-		c.Debugf("failed to save new accont: %s", err)
+		log.Debugf(c, "failed to save new accont: %s", err)
 		return err
 	}
 	account.putInMemcache(c)
 	return nil
 }
 
-func getAccountByEmail(email string, c appengine.Context) *Account {
+func getAccountByEmail(email string, c context.Context) *Account {
 	var account *Account
 	if _, err := memcache.JSON.Get(c, email, account); err == nil {
-		c.Debugf("got account from memcache")
+		log.Debugf(c, "got account from memcache")
 		makeSafe(account)
 		return account
 	}
@@ -69,7 +70,7 @@ func getAccountByEmail(email string, c appengine.Context) *Account {
 		account.putInMemcache(c)
 	} else {
 		account = &Account{
-			Email: email,
+			Email:       email,
 			NextEventID: 0,
 		}
 		makeSafe(account)
@@ -79,7 +80,7 @@ func getAccountByEmail(email string, c appengine.Context) *Account {
 	return account
 }
 
-func (account *Account) populateEvents(c appengine.Context) {
+func (account *Account) populateEvents(c context.Context) {
 	accountKey := datastore.NewKey(c, "Account", account.Email, 0, nil)
 
 	lookup := map[int]*Event{}
@@ -91,10 +92,10 @@ func (account *Account) populateEvents(c appengine.Context) {
 		for _, id := range account.RootEventIDs {
 			event := account.retrieveEvent(accountKey, id, c)
 			if event != nil {
-					account.RootEvents = append(account.RootEvents, event)
-					lookup[id] = event
+				account.RootEvents = append(account.RootEvents, event)
+				lookup[id] = event
 			} else {
-				c.Debugf("failed to find root event: %d", id)
+				log.Debugf(c, "failed to find root event: %d", id)
 			}
 		}
 	}

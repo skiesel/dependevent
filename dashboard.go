@@ -1,8 +1,8 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/user"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/user"
 	"net/http"
 )
 

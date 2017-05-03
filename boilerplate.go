@@ -1,9 +1,11 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/user"
 	"fmt"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/user"
 	"net/http"
 )
 
@@ -31,7 +33,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func showLogin(w http.ResponseWriter, r *http.Request, c appengine.Context) {
+func showLogin(w http.ResponseWriter, r *http.Request, c context.Context) {
 	login, err := user.LoginURL(c, "/")
 	if err != nil {
 		showError(w, http.StatusInternalServerError, err, c)
@@ -41,7 +43,7 @@ func showLogin(w http.ResponseWriter, r *http.Request, c appengine.Context) {
 	http.Redirect(w, r, login, http.StatusFound)
 }
 
-func showLogout(w http.ResponseWriter, r *http.Request, c appengine.Context) {
+func showLogout(w http.ResponseWriter, r *http.Request, c context.Context) {
 	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
 		showError(w, http.StatusInternalServerError, err, c)
@@ -51,7 +53,7 @@ func showLogout(w http.ResponseWriter, r *http.Request, c appengine.Context) {
 	http.Redirect(w, r, logout, http.StatusFound)
 }
 
-func showError(w http.ResponseWriter, status int, err error, c appengine.Context) {
-	c.Errorf("%v", err)
+func showError(w http.ResponseWriter, status int, err error, c context.Context) {
+	log.Errorf(c, "%v", err)
 	fmt.Fprintf(w, "Perhaps you've had one too many...")
 }

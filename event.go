@@ -1,31 +1,32 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/datastore"
-	"appengine/memcache"
 	"fmt"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/memcache"
 	"time"
 )
 
 type Event struct {
-	ID         int
+	ID          int
 	Name        string
 	Description string
 
-	Complete    bool
+	Complete     bool
 	CompleteDate time.Time
 
-	Active      bool
+	Active bool
 
-	SiblingID  int
-	ChildID    int
+	SiblingID int
+	ChildID   int
 
-	Child *Event `datastore:"-"`
+	Child   *Event `datastore:"-"`
 	Sibling *Event `datastore:"-"`
 }
 
-func (account *Account) putEventInMemcache(event *Event, c appengine.Context) {
+func (account *Account) putEventInMemcache(event *Event, c context.Context) {
 	memCacheItem := &memcache.Item{
 		Key:    fmt.Sprintf("%s%d", account.Email, event.ID),
 		Object: event,
@@ -33,7 +34,7 @@ func (account *Account) putEventInMemcache(event *Event, c appengine.Context) {
 	memcache.JSON.Set(c, memCacheItem)
 }
 
-func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c appengine.Context) (bool, error) {
+func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c context.Context) (bool, error) {
 	modified := false
 	if event.ID < 0 {
 		event.ID = account.NextEventID
@@ -64,7 +65,7 @@ func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c appeng
 	key := datastore.NewIncompleteKey(c, "Event", parentKey)
 
 	if key, err = datastore.Put(c, key, event); err != nil {
-		c.Debugf("Failed to put event in ds: %v", err)
+		log.Debugf(c, "Failed to put event in ds: %v", err)
 		return modified, err
 	}
 	account.putEventInMemcache(event, c)
@@ -72,7 +73,7 @@ func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c appeng
 	if event.Sibling != nil {
 		m, err := account.putInDS(key, event.Sibling, c)
 		if err != nil {
-			c.Debugf("Failed to put sibling event in ds: %v", err)
+			log.Debugf(c, "Failed to put sibling event in ds: %v", err)
 			return (modified || m), err
 		}
 	}
@@ -80,7 +81,7 @@ func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c appeng
 	if event.Child != nil {
 		m, err := account.putInDS(key, event.Child, c)
 		if err != nil {
-			c.Debugf("Failed to put child event in ds: %v", err)
+			log.Debugf(c, "Failed to put child event in ds: %v", err)
 			return (modified || m), err
 		}
 	}
@@ -88,15 +89,15 @@ func (account *Account) putInDS(parentKey *datastore.Key, event *Event, c appeng
 	return modified, nil
 }
 
-func (account *Account) updateInDS(accountKey *datastore.Key, event *Event, c appengine.Context) (bool, error) {
+func (account *Account) updateInDS(accountKey *datastore.Key, event *Event, c context.Context) (bool, error) {
 	dsEvent, key := account.retrieveEventFromDS(accountKey, event.ID, c)
 	if dsEvent == nil {
-		c.Debugf("Failed to find event in datastore! No update occurred.")
+		log.Debugf(c, "Failed to find event in datastore! No update occurred.")
 		return false, nil
 	}
 
 	if _, err := datastore.Put(c, key, event); err != nil {
-		c.Debugf("Failed to put event in ds: %v", err)
+		log.Debugf(c, "Failed to put event in ds: %v", err)
 		return false, err
 	}
 
@@ -105,7 +106,7 @@ func (account *Account) updateInDS(accountKey *datastore.Key, event *Event, c ap
 	return false, nil
 }
 
-func (account *Account) updateInDSDeep(accountKey *datastore.Key, event *Event, c appengine.Context) (bool, error) {
+func (account *Account) updateInDSDeep(accountKey *datastore.Key, event *Event, c context.Context) (bool, error) {
 	dsEvent := account.retrieveEventFromDSDeep(accountKey, event.ID, c)
 
 	accountUpdated := account.updateTree(dsEvent, event, c)
@@ -113,7 +114,7 @@ func (account *Account) updateInDSDeep(accountKey *datastore.Key, event *Event, 
 	return accountUpdated, nil
 }
 
-func (account *Account) retrieveEvent(accountKey *datastore.Key, eventID int, c appengine.Context) *Event {
+func (account *Account) retrieveEvent(accountKey *datastore.Key, eventID int, c context.Context) *Event {
 	event := &Event{}
 	// if _, err := memcache.JSON.Get(c, -----, event); err == nil {
 	// 	c.Debugf("Found event in memcache")
@@ -123,7 +124,7 @@ func (account *Account) retrieveEvent(accountKey *datastore.Key, eventID int, c 
 	return event
 }
 
-func (account *Account) retrieveEventFromDS(accountKey *datastore.Key, eventID int, c appengine.Context) (*Event, *datastore.Key) {
+func (account *Account) retrieveEventFromDS(accountKey *datastore.Key, eventID int, c context.Context) (*Event, *datastore.Key) {
 	if accountKey == nil {
 		accountKey = datastore.NewKey(c, "Account", account.Email, 0, nil)
 	}
@@ -133,24 +134,24 @@ func (account *Account) retrieveEventFromDS(accountKey *datastore.Key, eventID i
 	var events []Event
 	keys, err := query.GetAll(c, &events)
 	if err != nil || len(events) == 0 {
-		c.Debugf("Failed get event from DS: %v", err)
+		log.Debugf(c, "Failed get event from DS: %v", err)
 		return nil, nil
 	}
 	if len(events) != 1 {
-		c.Debugf("Found multiple events with the same ID in DS: %v", len(events))
+		log.Debugf(c, "Found multiple events with the same ID in DS: %v", len(events))
 	}
 
 	return &events[0], keys[0]
 }
 
-func (account *Account) retrieveEventDeep(accountKey *datastore.Key, eventID int, c appengine.Context) *Event {
+func (account *Account) retrieveEventDeep(accountKey *datastore.Key, eventID int, c context.Context) *Event {
 	return account.retrieveEventFromDSDeep(accountKey, eventID, c)
 }
 
-func (account *Account) retrieveEventFromDSDeep(accountKey *datastore.Key, eventID int, c appengine.Context) *Event {
+func (account *Account) retrieveEventFromDSDeep(accountKey *datastore.Key, eventID int, c context.Context) *Event {
 	event, eventKey := account.retrieveEventFromDS(accountKey, eventID, c)
 	if eventKey == nil {
-		c.Debugf("Failed get event from DS")
+		log.Debugf(c, "Failed get event from DS")
 		return nil
 	}
 
@@ -159,11 +160,11 @@ func (account *Account) retrieveEventFromDSDeep(accountKey *datastore.Key, event
 	var events []Event
 	_, err := query.GetAll(c, &events)
 	if err != nil || len(events) == 0 {
-		c.Debugf("Failed get event from DS: %v", err)
+		log.Debugf(c, "Failed get event from DS: %v", err)
 		return nil
 	}
 
- 	lookup := map[int]*Event{}
+	lookup := map[int]*Event{}
 	for i, e := range events {
 		lookup[e.ID] = &events[i]
 	}
@@ -172,13 +173,13 @@ func (account *Account) retrieveEventFromDSDeep(accountKey *datastore.Key, event
 	return event
 }
 
-func (event *Event) fillInTree(lookup map[int]*Event, c appengine.Context) {
+func (event *Event) fillInTree(lookup map[int]*Event, c context.Context) {
 	if event.SiblingID >= 0 {
 		if e, ok := lookup[event.SiblingID]; ok {
 			event.Sibling = e
 			event.Sibling.fillInTree(lookup, c)
 		} else {
-			c.Debugf("Failed to find sibling event in lookup: %d", event.SiblingID)
+			log.Debugf(c, "Failed to find sibling event in lookup: %d", event.SiblingID)
 		}
 	}
 	if event.ChildID >= 0 {
@@ -186,12 +187,12 @@ func (event *Event) fillInTree(lookup map[int]*Event, c appengine.Context) {
 			event.Child = e
 			event.Child.fillInTree(lookup, c)
 		} else {
-			c.Debugf("Failed to find child event in lookup: %d", event.ChildID)
+			log.Debugf(c, "Failed to find child event in lookup: %d", event.ChildID)
 		}
 	}
 }
 
-func (account *Account) updateTree(newEvent *Event, oldEvent *Event, c appengine.Context) bool {
+func (account *Account) updateTree(newEvent *Event, oldEvent *Event, c context.Context) bool {
 	// needToUpdateDS := false
 	// accountWasModified := false
 	//

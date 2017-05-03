@@ -1,9 +1,9 @@
 package dependevent
 
 import (
-	"appengine"
-	"appengine/user"
 	"encoding/json"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/user"
 	"net/http"
 	"strconv"
 )
@@ -41,9 +41,9 @@ func editEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	if event == nil {
 		event = &Event{
-			ID: -1,
-			SiblingID: -1,
-			ChildID: -1,
+			ID:          -1,
+			SiblingID:   -1,
+			ChildID:     -1,
 			Name:        "New Event",
 			Description: "New Event Description",
 		}
