@@ -1,165 +1,126 @@
-<html>
+<html ng-app="DependEvent">
+
 <head>
-  <title>Edit Event</title>
 
-  <link rel="stylesheet" type="text/css" href="css/modal.css">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular.js"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-tree/2.22.5/angular-ui-tree.min.js"></script>
+
+	<link href="css/tree.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//cdnjs.cloudflare.com/ajax/libs/angular-ui-tree/2.22.5/angular-ui-tree.min.css" rel="stylesheet">
+
+	<title>Dashboard</title>
+
+	<script>
+		var app = angular.module("DependEvent", ['ui.tree'], function($interpolateProvider) {
+				$interpolateProvider.startSymbol('[[');
+				$interpolateProvider.endSymbol(']]');
+			});
+	</script>
 </head>
-<body>
-  <script type="text/javascript" src="//vuejs.org/js/vue.js"></script>
-  <!-- item template -->
-  <script type="text/x-template" id="item-template">
-    <div>
-      <li>
-        <div>
-          <span @click="toggleEdit">${event.Name}</span><br/>
-          ${event.Description}<br/>
-          <span v-if="!event.Child"><button @click="addChild">add child</button><br/></span>
-          <span v-if="!event.Sibling"><button @click="addSibling">add sibling</button><br/></span>
-        </div>
-        <ul v-if="event.Child">
-          <item class="item" :event="event.Child"></item>
-        </ul>
-      </li>
-      <li v-if="event.Sibling">
-        <item class="item" :event="event.Sibling"></item>
-      </li>
-    </div>
-  </script>
 
-  <script type="text/x-template" id="modal-template">
-    <transition name="modal">
-      <div class="modal-mask">
-        <div class="modal-wrapper">
-          <div class="modal-container">
+<body ng-controller="EventEditController" ng-cloak>
+	<nav class="navbar navbar-default">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<a class="navbar-brand" href="#">
+					{{ .Email }}
+				</a>
+			</div>
+		</div>
+		<div class="btn-group" role="group">
+			<button type="submit" class="btn btn-default" ng-click="backToDashboard()">Cancel</button>
+			<button class="btn btn-default" ng-click="postUpdate()">Save</button>
+		</div>
+	</nav>
 
-            <div class="modal-header">
-              <slot name="header">Edit</slot>
-            </div>
+	<div class="alert alert-success" style="margin-bottom:0px;" ng-show="showAlertSuccess">
+		<strong>Success!</strong>
+	</div>
+	<div class="alert alert-danger" style="margin-bottom:0px;" ng-show="showAlertFailure">
+		<strong>Failed.</strong>
+	</div>
 
-            <div class="modal-body">
-              <slot name="body">
-                <table>
-                  <tr>
-                    <td>Name:</td>
-                    <td><input type="text" v-model="event.Name"/></td>
-                  <tr/>
-                  <tr>
-                    <td>Description:</td>
-                    <td><textarea v-model="event.Description"></textarea></td>
-                  <tr/>
-                </table>
+	<script type="text/ng-template" id="event_renderer.html">
+		<div ui-tree-handle class="tree-node tree-node-content">
+			<a class="btn" ng-if="event.events && event.events.length > 0" data-nodrag ng-click="toggle(this)"><span
+					class="glyphicon"
+					ng-class="{
+						'glyphicon-chevron-right': collapsed,
+						'glyphicon-chevron-down': !collapsed
+					}"></span></a> [[ event.title ]]
+			<a class="pull-right btn" data-nodrag ng-click="remove(this)"><span
+					class="glyphicon glyphicon-remove"></span></a>
+			<a class="pull-right btn" data-nodrag ng-click="newSubItem(this)" style="margin-right: 8px;"><span
+					class="glyphicon glyphicon-plus"></span></a>
+		</div>
+		<ol ui-tree-nodes="" ng-model="event.events" ng-class="{hidden: collapsed}">
+			<li ng-repeat="event in event.events" ui-tree-node ng-include="'event_renderer.html'">
+			</li>
+		</ol>
+	</script>
 
+	<div class="row">
+		<div class="col-xs-12">
+			<div ui-tree="treeOptions" id="tree-root">
+				<ol ui-tree-nodes ng-model="events">
+					<li ng-repeat="event in events" ui-tree-node ng-include="'event_renderer.html'"></li>
+				</ol>
+			</div>
+		</div>
+	</div>
 
-              </slot>
-            </div>
+	<script>
+		app.controller("EventEditController", function($scope, $timeout, $window) {
+			$scope.showAlertSuccess = false;
+			$scope.showAlertFailure = false;
 
-            <div class="modal-footer">
-              <slot name="footer">
-                <button class="modal-default-button" @click="cancel">cancel</button>
-                <button class="modal-default-button" @click="save">save</button>
-              </slot>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-  </script>
+			$scope.events = [];
 
-  <span id="status"></span>
+			if($scope.events.length == 0) {
+				$scope.events.push({
+					title: "new event",
+					events: []
+				});
+			}
 
-  <ul id="eventView">
-    <item class="item" :event="event"></item>
-  </ul>
+			$scope.remove = function(node) {
+				node.remove();
+			};
 
-  <div id="modalView">
-    <modal v-if="showModal" :showModal="showModal" :event="event"></modal>
-  </div>
+			$scope.toggle = function(node) {
+				node.toggle();
+			};
 
-  <button onclick="postUpdate()">save</button>
+			$scope.newSubItem = function(node) {
+				var nodeData = node.$modelValue;
+				nodeData.events.push({
+					title: "new event",
+					events: []
+				});
+			};
 
-  <script>
-  var editEvent = JSON.parse({{ . }});
-  var showModal = false;
+			$scope.backToDashboard = function() {
+				$window.location = "/";
+			};
 
-  function newEmptyEvent(name) {
-    return {
-      "Name" : name,
-      "ID" : -1,
-      "SiblingID" : -1,
-      "ChildID" : -1,
-    };
-  }
-
-  Vue.component('item', {
-    "template": "#item-template",
-    "delimiters": ['${', '}'],
-    "props": {
-      "event": Object,
-    },
-    methods: {
-      addChild: function () {
-        Vue.set(this.event, 'Child', newEmptyEvent("New Child"));
-      },
-      addSibling: function () {
-        Vue.set(this.event, 'Sibling', newEmptyEvent("New Sibling"));
-      },
-      toggleEdit: function () {
-        modalView.$data.showModal = true;
-        modalView.$data.selectedEvent = this.event;
-        modalView.$data.event = {
-          Name : this.event.Name,
-          Description : this.event.Description,
-        }
-      }
-    }
-  });
-
-  new Vue({
-    "el": "#eventView",
-    "data": {
-      "event": editEvent,
-    }
-  });
-
-  Vue.component('modal', {
-    template: '#modal-template',
-    "delimiters": ['${', '}'],
-    "props": {
-      "showModal": Boolean,
-      "event": Object,
-      "selectedEvent": Object,
-    },
-    methods: {
-      save: function() {
-        modalView.$data.selectedEvent.Name = modalView.$data.event.Name;
-        modalView.$data.selectedEvent.Description = modalView.$data.event.Description;
-        modalView.$data.showModal = false;
-      },
-      cancel: function() {
-        modalView.$data.showModal = false;
-      },
-    }
-  });
-
-  var modalView = new Vue({
-    "el": "#modalView",
-    "data": {
-      "showModal": false,
-      "event": null,
-      "selectedEvent": null,
-    }
-  });
-
-  function postUpdate() {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("status").innerHTML = this.responseText;
-      }
-    };
-    xhttp.open("POST", "/save_event", true);
-    xhttp.send(JSON.stringify(editEvent));
-  }
-  </script>
+			var timer = null;
+			$scope.postUpdate = function() {
+				// $http.post("/save", $scope.notes)
+	    	// 		.then(function(response) {
+				// 		if(response.data === "success") {
+				// 			$scope.showAlertSuccess = true;
+				// 		} else {
+							$scope.showAlertFailure = true;
+						// }
+						$timeout.cancel(timer);
+						timer = $timeout(function() { $scope.showAlertSuccess = $scope.showAlertFailure = false; }, 5000);
+	    	// });
+			}
+		});
+	</script>
 </body>
+
 </html>

@@ -2,6 +2,7 @@ package dependevent
 
 import (
 	"encoding/json"
+	"fmt"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/user"
 	"net/http"
@@ -55,7 +56,9 @@ func editEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = pages.ExecuteTemplate(w, "editevent.html", string(encodedEventBytes))
+	fmt.Println(encodedEventBytes)
+
+	err = pages.ExecuteTemplate(w, "editevent.html", account)
 	if err != nil {
 		showError(w, http.StatusInternalServerError, err, c)
 	}

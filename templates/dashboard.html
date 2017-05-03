@@ -1,4 +1,4 @@
-<html ng-app="Dashboard">
+<html ng-app="DependEvent">
 
 <head>
 
@@ -14,13 +14,13 @@
 	<title>Dashboard</title>
 
 	<script>
-		var app = angular.module("Dashboard", ['ui.tree'], function($interpolateProvider) {
+		var app = angular.module("DependEvent", ['ui.tree'], function($interpolateProvider) {
 				$interpolateProvider.startSymbol('[[');
 				$interpolateProvider.endSymbol(']]');
 			})
 			.config(function(treeConfig) {
 				treeConfig.defaultCollapsed = true;
-				treeConfig.appendChildOnHover = true;
+				treeConfig.dragEnabled = false;
 			});
 	</script>
 </head>
@@ -29,16 +29,20 @@
 
 	<script type="text/ng-template" id="event_renderer.html">
 		<div ui-tree-handle class="tree-node tree-node-content">
-			<a class="btn btn-success btn-xs" ng-if="event.events && event.events.length > 0" data-nodrag ng-click="toggle(this)"><span
-					class="glyphicon"
+			<a class="btn" ng-if="event.events && event.events.length > 0" data-nodrag ng-click="toggle(this)">
+				<span class="glyphicon"
 					ng-class="{
 						'glyphicon-chevron-right': collapsed,
 						'glyphicon-chevron-down': !collapsed
-					}"></span></a> [[ event.title ]]
-			<!-- <a class="pull-right btn btn-danger btn-xs" data-nodrag ng-click="remove(this)"><span
-					class="glyphicon glyphicon-remove"></span></a>
-			<a class="pull-right btn btn-primary btn-xs" data-nodrag ng-click="newSubItem(this)" style="margin-right: 8px;"><span
-					class="glyphicon glyphicon-plus"></span></a> -->
+					}"></span>
+			</a>
+			[[ event.title ]]
+			<a class="pull-right btn" data-nodrag ng-click="edit(this)" ng-if="event.root">
+				<span class="glyphicon glyphicon-pencil"></span>
+			</a>
+			<a class="pull-right btn" data-nodrag ng-click="complete(this)" ng-if="event.active">
+				<span class="glyphicon glyphicon-ok"></span>
+			</a>
 		</div>
 		<ol ui-tree-nodes="" ng-model="event.events" ng-class="{hidden: collapsed}">
 			<li ng-repeat="event in event.events" ui-tree-node ng-include="'event_renderer.html'">
@@ -47,17 +51,29 @@
 	</script>
 
 
-	<div>
-		{{ .Email }}
-	</div>
+	<nav class="navbar navbar-default">
+	  <div class="container-fluid">
+	    <div class="navbar-header">
+	      <a class="navbar-brand" href="#">
+	        {{ .Email }}
+	      </a>
+	    </div>
+	  </div>
+		<form class="navbar-form navbar-left" action="/edit_event">
+			<button type="submit" class="btn btn-default">Add New Event</button>
+		</form>
+	</nav>
 
-	<div>
-		<a href="./edit_event">Add New Event</a>
+	<div class="alert alert-success" style="margin-bottom:0px;" ng-show="showAlertSuccess">
+		<strong>Success!</strong>
+	</div>
+	<div class="alert alert-danger" style="margin-bottom:0px;" ng-show="showAlertFailure">
+		<strong>Failed.</strong>
 	</div>
 
 	<div class="row">
-		<div class="col-sm-6">
-			<div ui-tree id="tree-root">
+		<div class="col-xs-12">
+			<div ui-tree="treeOptions" id="tree-root" data-drag-enabled="false">
 				<ol ui-tree-nodes ng-model="events">
 					<li ng-repeat="event in events" ui-tree-node ng-include="'event_renderer.html'"></li>
 				</ol>
@@ -66,82 +82,78 @@
 	</div>
 
 	<script>
-		app.controller("DashboardController", function($scope) {
+		app.controller("DashboardController", function($scope, $timeout, $window) {
 			$scope.events = [{
 					"id": 1,
-					"title": "node1",
+					"title": "event1",
+					"root": true,
 					"events": [{
 							"id": 11,
-							"title": "node1.1",
+							"title": "event1.1",
 							"events": [{
 								"id": 111,
-								"title": "node1.1.1",
+								"title": "event1.1.1",
 								"events": []
 							}]
 						},
 						{
 							"id": 12,
-							"title": "node1.2",
+							"title": "event1.2",
 							"events": []
 						}
 					]
 				},
 				{
 					"id": 2,
-					"title": "node2",
-					"nodrop": true,
+					"title": "event2",
+					"root": true,
 					"events": [{
 							"id": 21,
-							"title": "node2.1",
+							"title": "event2.1",
+							"active": true,
 							"events": []
 						},
 						{
 							"id": 22,
-							"title": "node2.2",
+							"title": "event2.2",
 							"events": []
 						}
 					]
 				},
 				{
 					"id": 3,
-					"title": "node3",
+					"root": true,
+					"title": "event3",
 					"events": [{
 						"id": 31,
-						"title": "node3.1",
+						"title": "event3.1",
 						"events": []
 					}]
 				}
 			];
 
-			$scope.remove = function(scope) {
-				scope.remove();
-			};
-
 			$scope.toggle = function(scope) {
 				scope.toggle();
 			};
 
-			$scope.moveLastToTheBeginning = function() {
-				var a = $scope.events.pop();
-				$scope.events.splice(0, 0, a);
+			$scope.edit = function(scope) {
+				$window.location = "/edit_event?id=";// + scope.$id;
 			};
 
-			$scope.newSubItem = function(scope) {
-				var nodeData = scope.$modelValue;
-				nodeData.events.push({
-					id: nodeData.id * 10 + nodeData.events.length,
-					title: nodeData.title + '.' + (nodeData.events.length + 1),
-					nodes: []
-				});
-			};
-
-			$scope.collapseAll = function() {
-				$scope.$broadcast('angular-ui-tree:collapse-all');
-			};
-
-			$scope.expandAll = function() {
-				$scope.$broadcast('angular-ui-tree:expand-all');
-			};
+			var timer = null;
+			$scope.complete = function(node) {
+				// var url = "/complete_event?rid=" + 0 + "&id=" + scope.$id;
+				// $http.get("url")
+	    	// 		.then(function(response) {
+				// 		if(response.data === "success") {
+				// 			$scope.showAlertSuccess = true;
+				// 		} else {
+							$scope.showAlertFailure = true;
+						// }
+						$timeout.cancel(timer);
+						timer = $timeout(function() { $scope.showAlertSuccess = $scope.showAlertFailure = false; }, 5000);
+	    	// });
+			}
 
 		});
 	</script>
