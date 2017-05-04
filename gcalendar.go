@@ -10,8 +10,6 @@ import (
 
 	"google.golang.org/appengine/user"
 	"google.golang.org/appengine"
-  "golang.org/x/net/context"
-  "golang.org/x/oauth2"
   "google.golang.org/api/calendar/v3"
 )
 
@@ -26,10 +24,6 @@ func newEvent(title, description, date string) *calendar.Event {
 		return nil
 	}
 	return &event
-}
-
-func getClient(ctx context.Context, config *oauth2.Config, token *oauth2.Token) *http.Client {
-  return config.Client(ctx, token)
 }
 
 func getCalendarService(w http.ResponseWriter, r *http.Request) *calendar.Service {
@@ -49,7 +43,7 @@ func getCalendarService(w http.ResponseWriter, r *http.Request) *calendar.Servic
 		return nil
 	}
 
-	client := getClient(ctx, config, token)
+	client := config.Client(ctx, token)
 
 	srv, err := calendar.New(client)
 	if err != nil {
