@@ -18,5 +18,10 @@ func init() {
 
 	http.HandleFunc("/dashboard", dashboard)
 	http.HandleFunc("/logout", logout)
+
+	http.HandleFunc("/list_events", listEvents)
+	http.HandleFunc("/add_event", addEvent)
+	http.HandleFunc("/oauth", oauthResponse)
+
 	http.HandleFunc("/", index)
 }
