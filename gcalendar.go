@@ -3,7 +3,6 @@ package dependevent
 import (
 	"encoding/json"
 	"fmt"
-  "io/ioutil"
   "log"
   "net/http"
 	"strings"
@@ -13,13 +12,7 @@ import (
 	"google.golang.org/appengine"
   "golang.org/x/net/context"
   "golang.org/x/oauth2"
-  "golang.org/x/oauth2/google"
   "google.golang.org/api/calendar/v3"
-)
-
-var (
-	tokens = map[string]*oauth2.Token{}
-	config *oauth2.Config
 )
 
 func newEvent(title, description, date string) *calendar.Event {
@@ -35,55 +28,8 @@ func newEvent(title, description, date string) *calendar.Event {
 	return &event
 }
 
-func init() {
-	b, err := ioutil.ReadFile("client_secret.json")
-	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
-	}
-	config, err = google.ConfigFromJSON(b, calendar.CalendarScope)
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-}
-
-func getCachedToken(usr *user.User) (*oauth2.Token, string) {
-	tok, ok := tokens[usr.ID]
-  if !ok {
-    return nil, getRedirectURLForToken(config)
-  }
-	return tok, ""
-}
-
-func setCachedToken(usr *user.User, token *oauth2.Token) {
-	tokens[usr.ID] = token
-}
-
 func getClient(ctx context.Context, config *oauth2.Config, token *oauth2.Token) *http.Client {
   return config.Client(ctx, token)
-}
-
-func getRedirectURLForToken(config *oauth2.Config) string {
-  return config.AuthCodeURL("state-token", oauth2.AccessTypeOnline)
-}
-
-func oauthResponse(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	u := user.Current(ctx)
-
-	if r.URL.Query()["code"] == nil || r.URL.Query()["code"][0] == "" {
-		fmt.Fprintf(w, "token is absent")
-		log.Fatalf("token is absent")
-	}
-
-	tok, err := config.Exchange(ctx, r.URL.Query()["code"][0])
-  if err != nil {
-		fmt.Fprintf(w, "Unable to retrieve token %v", err)
-    log.Fatalf("Unable to retrieve token %v", err)
-  }
-
-	setCachedToken(u, tok)
-
-	http.Redirect(w, r, "/push_event", 303)
 }
 
 func getCalendarService(w http.ResponseWriter, r *http.Request) *calendar.Service {
@@ -95,10 +41,11 @@ func getCalendarService(w http.ResponseWriter, r *http.Request) *calendar.Servic
 		return nil
 	}
 
-	token, redirectUrl := getCachedToken(u)
+	account := getAccountByEmail(u.Email, ctx)
+	token := &account.OAuthToken
 
-	if token == nil {
-		http.Redirect(w, r, redirectUrl, 303)
+	if !token.Valid() {
+		startAuthProcess(w, r, "/dashboard")
 		return nil
 	}
 

@@ -5,10 +5,13 @@ import (
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/memcache"
+	"golang.org/x/oauth2"
 )
 
 type Account struct {
 	Email          string
+	OAuthToken     oauth2.Token
+	IntendedDestination string
 	NextEventID    int
 	RootEventIDs   []int
 	ActiveEventIDs []int

@@ -21,7 +21,8 @@ func init() {
 
 	http.HandleFunc("/list_events", listEvents)
 	http.HandleFunc("/add_event", addEvent)
-	http.HandleFunc("/oauth", oauthResponse)
+
+	http.HandleFunc("/oauth", gotAuthResponse)
 
 	http.HandleFunc("/", index)
 }
